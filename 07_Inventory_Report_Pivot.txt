@@ -1,0 +1,20 @@
+INSERT INTO "cms"."t_inventory_report"@SQLSERVER1 
+(
+    inventory_report_application_number, created_by, creation_date, contractor_name,
+    date_of_contract_signature, block_category, ref_psc_article_no, 
+    name_of_authorised_signatory, designation, inventory_from_date, inventory_to_date
+)
+SELECT 
+    REFID AS inventory_report_application_number,
+    CREATED_BY AS created_by,
+    TO_DATE(CREATED_ON, 'YYYY-MM-DD') AS creation_date,  
+    MAX(CASE WHEN label_no = '1' THEN label_value END) AS contractor_name,
+    TO_DATE(MAX(CASE WHEN label_no = '3' THEN label_value END), 'YYYY-MM-DD') AS date_of_contract_signature,
+    MAX(CASE WHEN label_no = '4' THEN label_value END) AS block_category,
+    MAX(CASE WHEN label_no = '5' THEN label_value END) AS ref_psc_article_no,
+    MAX(CASE WHEN label_no = '103' THEN label_value END) AS name_of_authorised_signatory,
+    MAX(CASE WHEN label_no = '104' THEN label_value END) AS designation, 
+    TO_DATE(MAX(CASE WHEN label_no = '105' THEN label_value END), 'YYYY-MM-DD') AS inventory_from_date, 
+    TO_DATE(MAX(CASE WHEN label_no = '106' THEN label_value END), 'YYYY-MM-DD') AS inventory_to_date
+FROM FRAMEWORK01.FORM_INVENTORY_REPORT
+GROUP BY REFID, CREATED_BY, CREATED_ON;

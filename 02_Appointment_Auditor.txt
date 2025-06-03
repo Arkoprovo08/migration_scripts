@@ -1,0 +1,44 @@
+create or replace PROCEDURE migrate_appointment_auditor 
+IS
+    CURSOR c_auditor IS 
+        SELECT REFID, PROCESSID, CREATED_ON, CREATED_BY, CONTRACTNAME, BLOCKNAME, BLOCK_ID, DOS_CONTRACT,
+        BLOCKCATEGORY, REF_TOPSC_ARTICALNO, NAME_AUDITOR,TOTAL_FEESPAY, DESIGNATION, 
+        NAME_AUTH_SIG_CONTRA, IS_ACTIVE, FROM_YEAR, TO_YEAR, OCR_AVAIABLE,
+        OCR_UNAVAIABLE_TXT, BID_ROUND
+
+        FROM FRAMEWORK01.FORM_APPOINTMENT_AUDITOR_OPR
+        WHERE IS_MIGRATED = 0;
+        
+     v_is_ocr_available NUMBER;
+    
+BEGIN
+    FOR a IN c_auditor LOOP
+        BEGIN
+            IF UPPER(TRIM(a.OCR_AVAIABLE)) = 'YES' THEN
+                v_is_ocr_available := 1;
+            ELSE
+                v_is_ocr_available := 0;
+            END IF;
+            
+            INSERT INTO "operator_contracts_agreements"."t_appointment_auditor_details"@LINK_SERVER_IMS
+            ("appointment_auditor_application_number", "migrated_process_id", "creation_date", "created_by",
+            "contractor_name", "block_name", "block_id", "dos_contract", "block_category", "ref_topsc_articalno",
+            "name_auditor",  "total_fees_payable_inr",  "designation","current_status",
+            "name_auth_sig_contra", "is_active", "audit_period_from", "audit_period_to", "is_ocr_available", 
+            "ocr_unavailable_txt", "awarded_under","process_id")
+
+            VALUES 
+            (a.REFID, a.PROCESSID, a.CREATED_ON, 5 , a.CONTRACTNAME, a.BLOCKNAME, a.BLOCK_ID, a.DOS_CONTRACT,
+            a.BLOCKCATEGORY, a.REF_TOPSC_ARTICALNO, a.NAME_AUDITOR, a.TOTAL_FEESPAY, a.DESIGNATION,'DRAFT',
+            a.NAME_AUTH_SIG_CONTRA, a.IS_ACTIVE, a.FROM_YEAR, a.TO_YEAR,v_is_ocr_available,a.OCR_UNAVAIABLE_TXT,a.BID_ROUND,30);
+
+            mark_as_migrated_aoa(a.REFID);
+
+        EXCEPTION
+            WHEN OTHERS THEN
+                log_error(SQLCODE, SQLERRM, 'AOA MIGRATION SYSTEM', 'FORM_APPOINTMENT_AUDITOR_OPR');
+        END;
+
+    END LOOP;    
+    COMMIT;
+END migrate_appointment_auditor;

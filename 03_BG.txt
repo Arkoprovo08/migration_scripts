@@ -1,0 +1,93 @@
+CREATE OR REPLACE PROCEDURE migrate_bg AS
+    CURSOR c_headers IS
+        SELECT DISTINCT REFID
+        FROM FRAMEWORK01.FORM_SUB_BG_LEGAL_RENEWAL
+        WHERE IS_MIGRATED = 0;
+
+    CURSOR c_details(p_refid VARCHAR2) IS
+        SELECT
+            CONTRACTNAME, BG_NO, DATE_OF_BG, DATE_OF_EXP_BG, CLIAM_OF_EXP_DATE_OF_BG,
+            APPLICABLE_PERC_BG, AMT_OF_BG, USD_INTO_INR, EXCHANGE_RATE_TAKEN,
+            EXCHANGE_RATE_DATE, NAME_OF_BANK, SCHEDULED_UNDER_RBI, ADDRESS_OF_BANK,
+            SIG_DIGITAL_SIG, BLOCK_ID, IS_BG_FORMAT_PSC, BG_REVISED_EXTENDED_CHK,
+            USD_INR, BG_SUBMITTED_BY, NEW_PREV_BG_LINKED, PREV_BG_LINKED_DET,
+            CONSORTIUM
+        FROM FRAMEWORK01.FORM_SUB_BG_LEGAL_RENEWAL
+        WHERE REFID = p_refid;
+
+    v_header_id NUMBER;
+    v_refid VARCHAR2(100);
+    v_processid VARCHAR2(100);
+    v_dos_contract VARCHAR2(100);
+    v_blockname VARCHAR2(100);
+    v_blockcategory VARCHAR2(100);
+    v_ref_topsc_artical_no VARCHAR2(100);
+    v_name_auth_sig_contra VARCHAR2(100);
+    v_designation VARCHAR2(100);
+    v_created_by VARCHAR2(100);
+    v_created_on DATE;
+    v_remarks VARCHAR2(1000);
+    v_contractname VARCHAR2(100);
+
+BEGIN
+    FOR h IN c_headers LOOP
+        BEGIN
+            SELECT
+                REFID, PROCESSID, DOS_CONTRACT, BLOCKNAME,
+                BLOCKCATEGORY, REF_TOPSC_ARTICALNO, NAME_AUTH_SIG_CONTRA, DESIGNATION,
+                CREATED_BY, CREATED_ON, REMARKS, CONTRACTNAME
+            INTO
+                v_refid, v_processid, v_dos_contract, v_blockname,
+                v_blockcategory, v_ref_topsc_artical_no, v_name_auth_sig_contra, v_designation,
+                v_created_by, v_created_on, v_remarks, v_contractname
+            FROM FRAMEWORK01.FORM_SUB_BG_LEGAL_RENEWAL
+            WHERE REFID = h.REFID
+            AND ROWNUM = 1;
+
+            INSERT INTO "financial_mgmt"."t_bank_gurantee_header"@LINK_SERVER_IMS (
+                "bank_gurantee_application_number", "is_migrated", "dos_contract", "block_name",
+                "block_category", "ref_topsc_artical_no", "name_auth_sig_contra", "designation", "created_by",
+                "creation_date", "remarks", "contractor_name", "current_status", "process_id"
+            )
+            VALUES (
+                v_refid, 1 , v_dos_contract, v_blockname,
+                v_blockcategory, v_ref_topsc_artical_no, v_name_auth_sig_contra, v_designation,
+                5, v_created_on, v_remarks, v_contractname, 'DRAFT', 18
+            );
+
+            SELECT "bank_gurantee_header_id"
+            INTO v_header_id
+            FROM "financial_mgmt"."t_bank_gurantee_header"@LINK_SERVER_IMS
+            WHERE "bank_gurantee_application_number" = v_refid
+            AND ROWNUM = 1;
+
+            FOR d IN c_details(h.REFID) LOOP
+                INSERT INTO "financial_mgmt"."t_bank_gurantee_details"@LINK_SERVER_IMS (
+                    "contractor_name", "bg_no", "date_of_bg", "date_of_exp_bg", "cliam_of_exp_date_of_bg",
+                    "applicable_perc_bg", "amt_of_bg", "usd_into_inr",
+                    "exchange_rate_taken", "exchange_rate_date", "name_of_bank", "scheduled_under_rbi",
+                    "address_of_bank", "sig_digital_sig", "current_status", "block_id", "is_bg_format_psc",
+                    "bg_revised_extended_chk", "usd_inr", "bg_submitted_by", "new_prev_bg_linked",
+                    "prev_bg_linked_det", "consortium", "bank_gurantee_header_id","is_migrated"
+                )
+                VALUES (
+                    d.CONTRACTNAME, d.BG_NO, d.DATE_OF_BG, d.DATE_OF_EXP_BG, d.CLIAM_OF_EXP_DATE_OF_BG,
+                    d.APPLICABLE_PERC_BG, d.AMT_OF_BG, d.USD_INTO_INR,
+                    d.EXCHANGE_RATE_TAKEN, d.EXCHANGE_RATE_DATE, d.NAME_OF_BANK, d.SCHEDULED_UNDER_RBI,
+                    d.ADDRESS_OF_BANK, d.SIG_DIGITAL_SIG, 'DRAFT', d.BLOCK_ID, d.IS_BG_FORMAT_PSC,
+                    d.BG_REVISED_EXTENDED_CHK, d.USD_INR, d.BG_SUBMITTED_BY, d.NEW_PREV_BG_LINKED,
+                    d.PREV_BG_LINKED_DET, d.CONSORTIUM, v_header_id,1
+                );
+            END LOOP;
+
+            mark_as_migrated_bg(h.REFID);
+
+        EXCEPTION
+            WHEN OTHERS THEN
+                log_error(SQLCODE, SQLERRM, 'SYSTEM', 'FORM_SUB_BG_LEGAL_RENEWAL');
+        END;
+    END LOOP;
+
+    COMMIT;
+END;
+/
