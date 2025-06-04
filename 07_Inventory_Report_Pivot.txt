@@ -1,20 +1,101 @@
-INSERT INTO "cms"."t_inventory_report"@SQLSERVER1 
-(
-    inventory_report_application_number, created_by, creation_date, contractor_name,
-    date_of_contract_signature, block_category, ref_psc_article_no, 
-    name_of_authorised_signatory, designation, inventory_from_date, inventory_to_date
-)
-SELECT 
-    REFID AS inventory_report_application_number,
-    CREATED_BY AS created_by,
-    TO_DATE(CREATED_ON, 'YYYY-MM-DD') AS creation_date,  
-    MAX(CASE WHEN label_no = '1' THEN label_value END) AS contractor_name,
-    TO_DATE(MAX(CASE WHEN label_no = '3' THEN label_value END), 'YYYY-MM-DD') AS date_of_contract_signature,
-    MAX(CASE WHEN label_no = '4' THEN label_value END) AS block_category,
-    MAX(CASE WHEN label_no = '5' THEN label_value END) AS ref_psc_article_no,
-    MAX(CASE WHEN label_no = '103' THEN label_value END) AS name_of_authorised_signatory,
-    MAX(CASE WHEN label_no = '104' THEN label_value END) AS designation, 
-    TO_DATE(MAX(CASE WHEN label_no = '105' THEN label_value END), 'YYYY-MM-DD') AS inventory_from_date, 
-    TO_DATE(MAX(CASE WHEN label_no = '106' THEN label_value END), 'YYYY-MM-DD') AS inventory_to_date
-FROM FRAMEWORK01.FORM_INVENTORY_REPORT
-GROUP BY REFID, CREATED_BY, CREATED_ON;
+CREATE OR REPLACE PROCEDURE migrate_inventory_report IS
+    CURSOR ref_cur IS
+        SELECT DISTINCT REFID
+        FROM FRAMEWORK01.FORM_INVENTORY_REPORT
+        WHERE REFID IS NOT NULL;
+
+    v_refid                         FORM_INVENTORY_REPORT.REFID%TYPE;
+    v_contractor_name               VARCHAR2(1000);
+    v_date_of_contract_signature    VARCHAR2(1000);
+    v_block_category                VARCHAR2(1000);
+    v_ref_psc_article_no            VARCHAR2(1000);
+    v_inventory_from_date           VARCHAR2(1000);
+    v_inventory_to_date             VARCHAR2(1000);
+    v_remarks                       VARCHAR2(1000);
+    v_name_of_authorised_signatory VARCHAR2(1000);
+    v_designation                   VARCHAR2(1000);
+    v_created_by                    VARCHAR2(1000);
+    v_creation_date                 DATE;
+    v_dgh_representative_name       VARCHAR2(1000);
+    v_block_name                    VARCHAR2(1000);
+
+BEGIN
+    FOR rec IN ref_cur LOOP
+        BEGIN
+            v_refid := rec.REFID;
+
+            SELECT MAX(CASE WHEN LABEL_NO = '1'   THEN LABEL_VALUE END),
+                   MAX(CASE WHEN LABEL_NO = '3'   THEN LABEL_VALUE END),
+                   MAX(CASE WHEN LABEL_NO = '4'   THEN LABEL_VALUE END),
+                   MAX(CASE WHEN LABEL_NO = '5'   THEN LABEL_VALUE END),
+                   MAX(CASE WHEN LABEL_NO = '105' THEN LABEL_VALUE END),
+                   MAX(CASE WHEN LABEL_NO = '106' THEN LABEL_VALUE END),
+                   MAX(CASE WHEN LABEL_NO = '102' THEN LABEL_VALUE END),
+                   MAX(CASE WHEN LABEL_NO = '103' THEN LABEL_VALUE END),
+                   MAX(CASE WHEN LABEL_NO = '104' THEN LABEL_VALUE END),
+                   MAX(CASE WHEN LABEL_NO = '108' THEN LABEL_VALUE END),
+                   MAX(CASE WHEN LABEL_NO = '2'   THEN LABEL_VALUE END)
+            INTO
+                v_contractor_name,
+                v_date_of_contract_signature,
+                v_block_category,
+                v_ref_psc_article_no,
+                v_inventory_from_date,
+                v_inventory_to_date,
+                v_remarks,
+                v_name_of_authorised_signatory,
+                v_designation,
+                v_dgh_representative_name,
+                v_block_name
+            FROM FRAMEWORK01.FORM_INVENTORY_REPORT
+            WHERE REFID = v_refid;
+
+            SELECT MAX(CREATED_BY), MAX(CREATED_ON)
+            INTO v_created_by, v_creation_date
+            FROM FRAMEWORK01.FORM_INVENTORY_REPORT
+            WHERE REFID = v_refid;
+
+            INSERT INTO "inventory_tracking"."t_inventory_report"@LINK_SERVER_IMS (
+                "inventory_report_application_number",
+                "contractor_name",
+                "date_of_contract_signature",
+                "block_category",
+                "ref_psc_article_no",
+                "inventory_from_date",
+                "inventory_to_date",
+                "remarks",
+                "name_of_authorised_signatory",
+                "designation",
+                "created_by",
+                "creation_date",
+                "dgh_representative_name",
+                "block_name"
+            ) VALUES (
+                v_refid,
+                v_contractor_name,
+                v_date_of_contract_signature,
+                v_block_category,
+                v_ref_psc_article_no,
+                v_inventory_from_date,
+                v_inventory_to_date,
+                v_remarks,
+                v_name_of_authorised_signatory,
+                v_designation,
+                v_created_by,
+                v_creation_date,
+                v_dgh_representative_name,
+                v_block_name
+            );
+
+            COMMIT;
+
+            mark_as_migrated_inventory_report(v_refid);
+
+        EXCEPTION
+            WHEN OTHERS THEN
+                log_error(SQLCODE, SQLERRM, 'AOA MIGRATION SYSTEM', 'FORM_APPOINTMENT_AUDITOR_OPR');
+                ROLLBACK;
+        END;
+    END LOOP;
+END;
+/

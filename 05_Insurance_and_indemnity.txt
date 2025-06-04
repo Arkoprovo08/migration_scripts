@@ -1,34 +1,32 @@
-CREATE OR REPLACE PROCEDURE migrate_insurance
+create or replace PROCEDURE migrate_insurance
 IS
     CURSOR c_insurance IS 
-        SELECT REFID, CREATED_ON, CREATED_BY, NAME_AUTH_SIG_CONTRA, DESIGNATION, REF_TOPSC_ARTICALNO, NAME_OF_INSURANCE_COMPANY,
-        SUM_INSURED, TICK_TO_PROCEED, BLOCKNAME, BLOCKCATEGORY, DOS_CONTRACT, CONTRACTNAME, TERM_OF_INSURANCE_TO, SUM_INSURED_USD, ASS_VAL_COVERED
-  
+        SELECT REFID,CONTRACTNAME,BLOCKNAME,DOS_CONTRACT,BLOCKCATEGORY,REF_TOPSC_ARTICALNO,NAME_OF_INSURANCE_COMPANY,
+        SUM_INSURED_USD,SUM_INSURED,ASS_VAL_COVERED,TERM_OF_INSURANCE,TERM_OF_INSURANCE_TO,NAME_AUTH_SIG_CONTRA,
+        DESIGNATION,CREATED_ON,PROCESSID
+
         FROM FRAMEWORK01.FORM_SUB_INSURANCE_INDEMNITY
         WHERE IS_MIGRATED = 0;
-    
+
 BEGIN
     FOR n IN c_insurance LOOP
         BEGIN
-            INSERT INTO "cms"."t_submission_of_insurance_and_indemnity"@SQLSERVER1
-            ("insurance_and_indemnity_application_number", "creation_date", "created_by", "name_of_authorised_signatory", 
-            "designation", "ref_psc_article_no", "insurance_company_name", "sum_insured_in_inr", "tick_to_proceed", "block_name",
-            "block_category", "date_of_contract_signature", "contractor_name", "insurance_to", "sum_insured_in_usd", "asset_value_covered_in_usd")
+            INSERT INTO "financial_mgmt"."t_submission_of_insurance_and_indemnity"@LINK_SERVER_IMS
+            ("insurance_and_indemnity_application_number","contractor_name","block_name","date_of_contract_signature",
+             "block_category","ref_psc_article_no","insurance_company_name","sum_insured_in_usd","sum_insured_in_inr",
+             "asset_value_covered_in_usd","insurance_from","insurance_to","name_of_authorised_signatory",
+             "designation","created_by","creation_date","process_id","migrated_process_id")
             VALUES 
-            (n.REFID, n.CREATED_ON, n.CREATED_BY, n.NAME_AUTH_SIG_CONTRA, n.DESIGNATION, n.REF_TOPSC_ARTICALNO,
-            n.NAME_OF_INSURANCE_COMPANY, n.SUM_INSURED, n.TICK_TO_PROCEED, n.BLOCKNAME, n.BLOCKCATEGORY, n.DOS_CONTRACT,
-            n.CONTRACTNAME, n.TERM_OF_INSURANCE_TO, n.SUM_INSURED_USD, n.ASS_VAL_COVERED);
-            
-            UPDATE FRAMEWORK01.FORM_SUB_INSURANCE_INDEMNITY
-            SET IS_MIGRATED = 1
-            WHERE UPPER(TRIM(REFID)) = UPPER(TRIM(n.REFID));
+            (n.REFID,n.CONTRACTNAME,n.BLOCKNAME,n.DOS_CONTRACT,
+             n.BLOCKCATEGORY,n.REF_TOPSC_ARTICALNO,n.NAME_OF_INSURANCE_COMPANY,n.SUM_INSURED_USD,n.SUM_INSURED,
+             n.ASS_VAL_COVERED,n.TERM_OF_INSURANCE,n.TERM_OF_INSURANCE_TO,n.NAME_AUTH_SIG_CONTRA,
+             n.DESIGNATION,5,n.CREATED_ON,23,n.PROCESSID);
 
+            mark_as_migrated_insurance(n.REFID);            
         EXCEPTION
             WHEN OTHERS THEN
-       --         INSERT INTO FRAMEWORK01.ERROR_LOGS (ERROR_CODE, ERROR_MESSAGE, USER_ID, TABLE_NAME, ERROR_TIME)
-         --       VALUES (TO_CHAR(SQLCODE), SUBSTR(SQLERRM, 1, 250), 1, 'FORM_NOTICE_NEXT_PHASE_RELIN', SYSTIMESTAMP);
-                
-                DBMS_OUTPUT.PUT_LINE('Error Occurred: ' || SQLERRM);
+                log_error(SQLCODE, SQLERRM, 'SUB INSURANCE MIGRATION', 'POMS_FRM_USERS');
+
         END;
     END LOOP;
     COMMIT;
