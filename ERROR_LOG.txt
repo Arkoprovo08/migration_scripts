@@ -1,0 +1,33 @@
+create or replace NONEDITIONABLE PROCEDURE log_error (
+    p_error_code    IN NUMBER,
+    p_error_msg     IN VARCHAR2,
+    p_module_name   IN VARCHAR2,
+    p_table_name    IN VARCHAR2,
+    p_refid         IN VARCHAR2,
+    p_error_trace   IN VARCHAR2   -- New parameter to accept backtrace
+) IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+    INSERT INTO FRAMEWORK01.MIGRATION_ERROR_LOG 
+    (
+        ERROR_CODE,
+        ERROR_MESSAGE,
+        MODULE_NAME,
+        TABLE_NAME,
+        REFID,
+        LOG_TIMESTAMP,
+        ERROR_TRACE
+    )
+    VALUES 
+    (
+        p_error_code,
+        SUBSTR(p_error_msg, 1, 4000),
+        p_module_name,
+        p_table_name,
+        p_refid,
+        SYSTIMESTAMP,
+        SUBSTR(p_error_trace, 1, 4000)
+    );
+
+    COMMIT;
+END log_error;
