@@ -15,12 +15,12 @@ BEGIN
             ("insurance_and_indemnity_application_number","contractor_name","block_name","date_of_contract_signature",
              "block_category","ref_psc_article_no","insurance_company_name","sum_insured_in_usd","sum_insured_in_inr",
              "asset_value_covered_in_usd","insurance_from","insurance_to","name_of_authorised_signatory",
-             "designation","created_by","creation_date","process_id","is_migrated","declaration_checkbox","is_active")
+             "designation","created_by","creation_date","process_id","is_migrated","declaration_checkbox","is_active","is_declared")
             VALUES 
             (n.REFID,n.CONTRACTNAME,n.BLOCKNAME,n.DOS_CONTRACT,
              n.BLOCKCATEGORY,n.REF_TOPSC_ARTICALNO,n.NAME_OF_INSURANCE_COMPANY,n.SUM_INSURED_USD,n.SUM_INSURED,
              n.ASS_VAL_COVERED,n.TERM_OF_INSURANCE,n.TERM_OF_INSURANCE_TO,n.NAME_AUTH_SIG_CONTRA,
-             n.DESIGNATION,5,n.CREATED_ON,23,1,'{}',1);
+             n.DESIGNATION,5,n.CREATED_ON,23,1,'null',1,1);
 
             mark_as_migrated_insurance(n.REFID);            
         EXCEPTION
