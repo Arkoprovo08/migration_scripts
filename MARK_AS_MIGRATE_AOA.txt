@@ -1,0 +1,9 @@
+create or replace NONEDITIONABLE PROCEDURE mark_as_migrated_aoa(p_refid IN VARCHAR2) IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+    UPDATE FRAMEWORK01.FORM_APPOINTMENT_AUDITOR_OPR
+    SET IS_MIGRATED = 1
+    WHERE REFID = p_refid;
+
+    COMMIT;
+END mark_as_migrated_aoa;

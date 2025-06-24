@@ -1,0 +1,33 @@
+create or replace NONEDITIONABLE PROCEDURE migrate_bank_gurantee_01
+IS
+    CURSOR c_bg IS 
+        SELECT 
+        REFID, DOS_CONTRACT, BLOCKNAME,BLOCKCATEGORY, REF_TOPSC_ARTICALNO,
+        NAME_AUTH_SIG_CONTRA,DESIGNATION,CREATED_ON,REMARKS,CONTRACTNAME
+
+        FROM FRAMEWORK01.FORM_SUB_BG_LEGAL_RENEWAL
+        WHERE IS_MIGRATED_01 = 0;
+
+BEGIN
+    FOR a IN c_bg LOOP
+        BEGIN
+
+            INSERT INTO "financial_mgmt"."t_bank_gurantee_header"@LINK_SERVER_IMS
+            ("bank_gurantee_application_number","dos_contract","block_name","block_category",
+             "ref_topsc_artical_no","name_auth_sig_contra","designation","created_by",
+             "creation_date","remarks","contractor_name","process_id","is_active","current_status"
+             )
+            VALUES 
+            (a.REFID, a.DOS_CONTRACT,a.BLOCKNAME,a.BLOCKCATEGORY,a.REF_TOPSC_ARTICALNO,
+             a.NAME_AUTH_SIG_CONTRA,a.DESIGNATION,5,a.CREATED_ON,a.REMARKS,
+             a.CONTRACTNAME,18,1,'DRAFT');
+
+            mark_as_migrated_bg_01(a.REFID);
+        EXCEPTION
+            WHEN OTHERS THEN
+                log_error(SQLCODE, SQLERRM, 'BG MIGRATION SYSTEM_01', 'FORM_SUB_BG_LEGAL_RENEWAL', a.REFID, DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
+                CONTINUE;
+        END;
+    END LOOP;    
+    COMMIT;
+END migrate_bank_gurantee_01;

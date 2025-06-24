@@ -1,0 +1,55 @@
+create or replace NONEDITIONABLE PROCEDURE migrate_bank_gurantee_02
+IS
+    CURSOR c_bg IS 
+        SELECT 
+            REFID, CONTRACTNAME, BG_NO, DATE_OF_BG, DATE_OF_EXP_BG, CLIAM_OF_EXP_DATE_OF_BG,
+            APPROVED_BUD_AMT_CAL_BG, APPLICABLE_PERC_BG, AMT_OF_BG, USD_INTO_INR,
+            EXCHANGE_RATE_TAKEN, EXCHANGE_RATE_DATE, NAME_OF_BANK, SCHEDULED_UNDER_RBI,
+            ADDRESS_OF_BANK, SIG_DIGITAL_SIG, STATUS, BLOCK_ID, IS_BG_FORMAT_PSC,
+            BG_REVISED_EXTENDED_CHK, USD_INR, BG_SUBMITTED_BY, NEW_PREV_BG_LINKED,
+            PREV_BG_LINKED_DET, CONSORTIUM, CREATED_ON
+        FROM FRAMEWORK01.FORM_SUB_BG_LEGAL_RENEWAL
+        WHERE IS_MIGRATED_02 = 0 AND STATUS = '1';
+
+    v_header_id NUMBER;
+
+BEGIN
+    FOR a IN c_bg LOOP
+        BEGIN
+
+            SELECT "bank_gurantee_header_id"
+            INTO v_header_id
+            FROM "financial_mgmt"."t_bank_gurantee_header"@LINK_SERVER_IMS
+            WHERE "bank_gurantee_application_number" = a.REFID;
+
+            INSERT INTO "financial_mgmt"."t_bank_gurantee_details"@LINK_SERVER_IMS (
+                "bank_gurantee_header_id", "contractor_name", "bg_no", "date_of_bg", "date_of_exp_bg", "cliam_of_exp_date_of_bg",
+                "applicable_perc_bg", "amt_of_bg", "usd_into_inr",
+                "exchange_rate_taken", "exchange_rate_date", "name_of_bank", "scheduled_under_rbi",
+                "address_of_bank", "sig_digital_sig", "is_bg_format_psc", "bg_revised_extended_chk",
+                "usd_inr", "new_prev_bg_linked", "prev_bg_linked_det", "consortium",
+                "is_e_bg", "is_active", "created_by", "creation_date","is_migrated"
+--              , "company_id"
+            )
+            VALUES (
+                v_header_id, a.CONTRACTNAME, a.BG_NO, a.DATE_OF_BG, a.DATE_OF_EXP_BG, a.CLIAM_OF_EXP_DATE_OF_BG,
+                a.APPLICABLE_PERC_BG, a.AMT_OF_BG, a.USD_INTO_INR,
+                a.EXCHANGE_RATE_TAKEN, a.EXCHANGE_RATE_DATE, a.NAME_OF_BANK, a.SCHEDULED_UNDER_RBI,
+                a.ADDRESS_OF_BANK, a.SIG_DIGITAL_SIG, a.IS_BG_FORMAT_PSC, a.BG_REVISED_EXTENDED_CHK,
+                a.USD_INR, a.NEW_PREV_BG_LINKED, a.PREV_BG_LINKED_DET, a.CONSORTIUM,
+                0, 1, 5, a.CREATED_ON,1
+            );
+
+            mark_as_migrated_bg_02(a.REFID);
+
+        EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+                log_error(-1, 'Header not found for REFID: ' || a.REFID, 'BG MIGRATION SYSTEM_02', 'FORM_SUB_BG_LEGAL_RENEWAL', a.REFID, DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
+            WHEN OTHERS THEN
+                log_error(SQLCODE, SQLERRM, 'BG MIGRATION SYSTEM_02', 'FORM_SUB_BG_LEGAL_RENEWAL', a.REFID, DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
+                CONTINUE;
+        END;
+    END LOOP;
+
+    COMMIT;
+END migrate_bank_gurantee_02;
