@@ -1,0 +1,33 @@
+create or replace NONEDITIONABLE PROCEDURE mark_as_migrated_lqd_damages_01(p_refid IN VARCHAR2) IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+    UPDATE FRAMEWORK01.FORM_LD_CALCULATIONS
+    SET IS_MIGRATED_01 = 1
+    WHERE REF_ID = p_refid;
+
+    COMMIT;
+END mark_as_migrated_lqd_damages_01;
+
+---------------------------------------------------------
+
+create or replace NONEDITIONABLE PROCEDURE mark_as_migrated_lqd_damages_02(p_refid IN VARCHAR2) IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+    UPDATE FRAMEWORK01.FORM_LD_CALCULATIONS_DATA
+    SET IS_MIGRATED = 1
+    WHERE REFID = p_refid;
+
+    COMMIT;
+END mark_as_migrated_lqd_damages_02;
+
+----------------------------------------------------------
+
+create or replace NONEDITIONABLE PROCEDURE mark_as_migrated_lqd_damages_03(p_refid IN VARCHAR2) IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+    UPDATE FRAMEWORK01.FORM_LD_CALCULATIONS
+    SET IS_MIGRATED_02 = 1
+    WHERE REF_ID = p_refid;
+
+    COMMIT;
+END mark_as_migrated_lqd_damages_03;

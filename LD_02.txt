@@ -1,0 +1,98 @@
+create or replace NONEDITIONABLE PROCEDURE migrate_lqd_damages_02(p_refid IN VARCHAR2)
+IS
+    -- Declare local variables for each mapped field
+    v_minimum_work_programme_text         VARCHAR2(4000);
+    v_mandatory_work_programme_text       VARCHAR2(4000);
+    v_exploration_phase_dropdown          VARCHAR2(4000);
+    v_date_end_exploration_phase          DATE;
+    v_mwp_completed                        VARCHAR2(4000);
+    v_shortfall_target_depth_text         VARCHAR2(4000);
+    v_shortfall_geological_objective_text VARCHAR2(4000);
+    v_protagnostic_thickness_text         VARCHAR2(4000);
+    v_possibility_potential_reservoir     VARCHAR2(4000);
+    v_ep_data_submitted                   VARCHAR2(4000);
+    v_date_coumwp                         DATE;
+    v_amount_coumwp_paid_usd              NUMBER;
+    v_head_account                        VARCHAR2(4000);
+    v_cin_no                              VARCHAR2(4000);
+    v_bank_ref_no                         VARCHAR2(4000);
+    v_crn                                 VARCHAR2(4000);
+    v_is_detailed_calculations_provided   VARCHAR2(10);
+    v_compl_psc_terms                     VARCHAR2(10);
+    v_amount_coumwp_paid_inr              NUMBER;
+BEGIN
+    SELECT
+        MAX(CASE WHEN data_id = 'txt_Unfinished_Minimum' THEN data_value END),
+        MAX(CASE WHEN data_id = 'txt_Unfinished_Mandatory' THEN data_value END),
+        MAX(CASE WHEN data_id = 'txt_unfinished_quantum' THEN data_value END),
+        MAX(CASE WHEN data_id = 'txt_Date_Exploration_Phase' THEN TO_DATE(data_value, 'DD/MM/YYYY') END),
+        MAX(CASE WHEN data_id = 'txt_concerned_phase' THEN data_value END),
+        MAX(CASE WHEN data_id = 'txt_target_depth' THEN data_value END),
+        MAX(CASE WHEN data_id = 'txt_Shortfall_achieving' THEN data_value END),
+        MAX(CASE WHEN data_id = 'txt_Prognosticated_thickness' THEN data_value END),
+        MAX(CASE WHEN data_id = 'txt_Possibility_potential' THEN data_value END),
+        MAX(CASE WHEN data_id = 'ddl_EP_Data' THEN data_value END),
+        MAX(CASE WHEN data_id = 'txt_Date_COUMWP' THEN TO_DATE(data_value, 'DD/MM/YYYY') END),
+        MAX(CASE WHEN data_id = 'txt_Amount_COUMWP_USD' THEN TO_NUMBER(data_value) END),
+        MAX(CASE WHEN data_id = 'txt_Head_Account' THEN data_value END),
+        MAX(CASE WHEN data_id = 'txt_CIN' THEN data_value END),
+        MAX(CASE WHEN data_id = 'txt_Bank_Reference' THEN data_value END),
+        MAX(CASE WHEN data_id = 'txt_CRN' THEN data_value END),
+        MAX(CASE WHEN data_id = 'ddl_Agreement_between_operators' THEN data_value END),
+        MAX(CASE WHEN data_id = 'ddl_Compliance_PSC' THEN data_value END),
+        MAX(CASE WHEN data_id = 'txt_Amount_COUMWP_INR' THEN TO_NUMBER(data_value) END)
+    INTO
+        v_minimum_work_programme_text,
+        v_mandatory_work_programme_text,
+        v_exploration_phase_dropdown,
+        v_date_end_exploration_phase,
+        v_mwp_completed,
+        v_shortfall_target_depth_text,
+        v_shortfall_geological_objective_text,
+        v_protagnostic_thickness_text,
+        v_possibility_potential_reservoir,
+        v_ep_data_submitted,
+        v_date_coumwp,
+        v_amount_coumwp_paid_usd,
+        v_head_account,
+        v_cin_no,
+        v_bank_ref_no,
+        v_crn,
+        v_is_detailed_calculations_provided,
+        v_compl_psc_terms,
+        v_amount_coumwp_paid_inr
+    FROM FRAMEWORK01.FORM_LD_CALCULATIONS_DATA
+    WHERE refid = p_refid;
+
+    UPDATE "financial_mgmt"."t_liquidated_damages_details"@LINK_SERVER_IMS
+    SET
+        "minimum_work_programme_text"         = v_minimum_work_programme_text,
+        "mandatory_work_programme_text"       = v_mandatory_work_programme_text,
+        "exploration_phase_dropdown"          = v_exploration_phase_dropdown,
+        "date_end_exploration_phase"          = v_date_end_exploration_phase,
+        "mwp_completed"                       = v_mwp_completed,
+        "shortfall_target_depth_text"         = v_shortfall_target_depth_text,
+        "shortfall_geological_objective_text" = v_shortfall_geological_objective_text,
+        "protagnostic_thickness_text"         = v_protagnostic_thickness_text,
+        "possibility_potential_reservoir"     = v_possibility_potential_reservoir,
+        "ep_data_submitted"                   = v_ep_data_submitted,
+        "date_coumwp"                         = v_date_coumwp,
+        "amount_coumwp_paid_usd"              = v_amount_coumwp_paid_usd,
+        "head_account"                        = v_head_account,
+        "cin_no"                              = v_cin_no,
+        "bank_ref_no"                         = v_bank_ref_no,
+        "crn"                                 = v_crn,
+        "is_detailed_calculations_provided"   = v_is_detailed_calculations_provided,
+        "compl_psc_terms"                     = v_compl_psc_terms,
+        "amount_coumwp_paid_inr"              = v_amount_coumwp_paid_inr
+
+    WHERE "liquidated_damages_application_number" = p_refid;
+
+    mark_as_migrated_lqd_damages_02(p_refid);
+    COMMIT;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        log_error(SQLCODE, SQLERRM, 'LD MIGRATION STEP-2', 'FORM_LD_CALCULATIONS_DATA', p_refid, DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
+        ROLLBACK;
+END migrate_lqd_damages_02;
