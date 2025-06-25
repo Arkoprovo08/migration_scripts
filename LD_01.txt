@@ -12,10 +12,11 @@ BEGIN
         BEGIN
              INSERT INTO "financial_mgmt"."t_liquidated_damages_details"@LINK_SERVER_IMS
             ("liquidated_damages_application_number", "block_name", "contractor_name", "block_category", "date_of_signing_contract", 
-            "effective_date", "article_number", "name_authorized_signatory", "designation", "is_active", "process_id","created_by", "creation_date", "awarded_under","is_migrated")
+            "effective_date", "article_number", "name_authorized_signatory", "designation", "is_active", "process_id","created_by",
+            "creation_date", "awarded_under","is_migrated","current_status")
             VALUES 
             (a.REF_ID, a.BLOCKNAME, a.CONTRACTNAME, a.BLOCKCATEGORY, a.DOS_CONTRACT,
-             a.DATE_EFFECTIVE, a.REF_TOPSC_ARTICALNO,a.NAME_AUTH_SIG_CONTRA, a.DESIGNATION, a.IS_ACTIVE,32 ,5, a.CREATED_ON, a.BID_ROUND,1);
+             a.DATE_EFFECTIVE, a.REF_TOPSC_ARTICALNO,a.NAME_AUTH_SIG_CONTRA, a.DESIGNATION, a.IS_ACTIVE,32 ,5, a.CREATED_ON, a.BID_ROUND,1,'DRAFT');
 
             mark_as_migrated_lqd_damages_01(a.REF_ID);
 
