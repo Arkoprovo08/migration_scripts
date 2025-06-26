@@ -1,0 +1,21 @@
+create or replace NONEDITIONABLE PROCEDURE mark_as_migrated_format_c_01(p_refid IN VARCHAR2) IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+    UPDATE FRAMEWORK01.FORM_COMMERICAL_DIS_FORMAT_C
+    SET IS_MIGRATED = 1
+    WHERE REFID = p_refid;
+
+    COMMIT;
+END mark_as_migrated_format_c_01;
+
+------------------------------------------------------------------------------------------
+
+create or replace NONEDITIONABLE PROCEDURE mark_as_migrated_format_c_02(p_refid IN VARCHAR2) IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+    UPDATE FRAMEWORK01.FORM_COMMERICAL_DIS_FORMAT_C2
+    SET IS_MIGRATED = 1
+    WHERE REFID = p_refid;
+
+    COMMIT;
+END mark_as_migrated_format_c_02;

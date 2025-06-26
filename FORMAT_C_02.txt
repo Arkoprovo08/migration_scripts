@@ -1,0 +1,39 @@
+create or replace NONEDITIONABLE PROCEDURE migrate_format_c_02(p_refid IN VARCHAR2)
+IS
+    v_well_name    VARCHAR2(400);
+    v_format_c_id  NUMBER;
+
+    CURSOR c_format IS 
+        SELECT refid
+        FROM FRAMEWORK01.FORM_COMMERICAL_DIS_FORMAT_C2
+        WHERE IS_MIGRATED = 0 AND REFID = p_refid AND ACTIVE = '1';
+
+BEGIN
+    SELECT MAX(CASE WHEN label_value = 'Well_Name' THEN label_input END)
+    INTO v_well_name
+    FROM FRAMEWORK01.FORM_COMMERICAL_DIS_FORMAT_C2
+    WHERE IS_MIGRATED = 0 AND REFID = p_refid AND ACTIVE = '1';
+
+    SELECT "format_c_id"
+    INTO v_format_c_id
+    FROM "operator_contracts_agreements"."t_format_c_commercial_discovery_header"@LINK_SERVER_IMS
+    WHERE "format_c_application_no" = p_refid;
+
+    FOR a IN c_format LOOP
+        BEGIN
+            INSERT INTO "operator_contracts_agreements"."t_format_c_well_details"@LINK_SERVER_IMS
+            ("format_c_id", "well_name_or_number", "created_by", "is_active")
+            VALUES 
+            (v_format_c_id, v_well_name, 5, 1);
+
+            mark_as_migrated_format_c_02(a.refid);
+
+        EXCEPTION
+            WHEN OTHERS THEN
+                log_error(SQLCODE, SQLERRM,'FORMAT_C MIGRATION SYSTEM_02','FORM_COMMERICAL_DIS_FORMAT_C2',a.refid,DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
+                CONTINUE;
+        END;
+    END LOOP;
+
+    COMMIT;
+END migrate_format_c_02;

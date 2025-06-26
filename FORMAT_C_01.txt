@@ -1,0 +1,50 @@
+create or replace NONEDITIONABLE PROCEDURE migrate_format_c_01
+IS
+    CURSOR c_format IS 
+        SELECT 
+        REFID, CONTRACTNAME, BLOCKNAME, DOS_CONTRACT, BLOCKCATEGORY, UPLOAD_OCR, UPLOAD_OCR_NO_REMARK,
+        NAME_OF_DISCOVERY, FORMAT_A_DATE, FORMAT_B_DATE, HYDRO_TYPE, REF_TOPSC_ARTICALNO, CONTRACTOR_PARTIES, 
+        AREA_BLOCK, NAME_OF_THE_FIELD, NUMBER_OF_HYDROCARBON, NAME_AUTH_SIG_CONTRA, DESIGNATION, CREATED_ON, AVA_WITH_CONTRACTOR_CHK
+        FROM FRAMEWORK01.FORM_COMMERICAL_DIS_FORMAT_C
+        WHERE IS_MIGRATED = 0;
+
+        tick_a NUMBER;
+        tick_b NUMBER;
+
+BEGIN
+    FOR a IN c_format LOOP
+        BEGIN
+            IF UPPER(TRIM(a.AVA_WITH_CONTRACTOR_CHK)) = '1' THEN
+                tick_a := 1;
+            ELSE
+                tick_a := 0;
+            END IF;
+            IF UPPER(TRIM(a.AVA_WITH_CONTRACTOR_CHK)) = '2' THEN
+                tick_b := 1;
+            ELSE
+                tick_b := 0;
+            END IF;
+
+            INSERT INTO "operator_contracts_agreements"."t_format_c_commercial_discovery_header"@LINK_SERVER_IMS
+            ("format_c_application_no", "contractor_name", "block_name", "dos_contract", "block_category", "ocr_available", "justification_unavailability_ocr",
+            "name_of_discoveries", "date_of_discovery", "date_of_notification", "hydrocarbon_type", "ref_topsc_articalno", "contractor_parties",
+            "area_of_block", "name_of_field", "num_hydrocarbon_zones", "name_of_authorised_signatory", "designation", "creation_date", 
+            "tick_option_a", "tick_option_b", "process_id", "created_by","is_active")
+
+            VALUES 
+            (a.REFID, a.CONTRACTNAME, a.BLOCKNAME, a.DOS_CONTRACT, a.BLOCKCATEGORY, a.UPLOAD_OCR, a.UPLOAD_OCR_NO_REMARK,
+             a.NAME_OF_DISCOVERY, a.FORMAT_A_DATE, a.FORMAT_B_DATE, a.HYDRO_TYPE, a.REF_TOPSC_ARTICALNO, a.CONTRACTOR_PARTIES,
+             a.AREA_BLOCK, a.NAME_OF_THE_FIELD, a.NUMBER_OF_HYDROCARBON, a.NAME_AUTH_SIG_CONTRA, a.DESIGNATION, a.CREATED_ON,
+             tick_a,tick_b,14,5,1);
+
+            mark_as_migrated_format_c_01(a.REFID);
+
+        EXCEPTION
+            WHEN OTHERS THEN
+                log_error(SQLCODE, SQLERRM, 'FORMAT_C MIGRATION SYSTEM_01', 'FORM_COMMERICAL_DIS_FORMAT_C',a.REFID,DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
+                CONTINUE;
+        END;
+
+    END LOOP;    
+    COMMIT;
+END migrate_format_c_01;
