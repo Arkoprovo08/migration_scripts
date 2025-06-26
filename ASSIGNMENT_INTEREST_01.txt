@@ -1,0 +1,33 @@
+create or replace NONEDITIONABLE PROCEDURE migrate_assignment_interest_01
+IS
+    CURSOR c_interset IS 
+        SELECT REF_ID, BLOCKCATEGORY, BLOCKNAME, CONSORTIUM, ASSIGNOR, ASSIGNEE, STATUS_CONTRACTORS,
+        NAME_AUTH_SIG_CONTRA, DESIGNATION, IS_ACTIVE, CREATED_ON, CONTRACTNAME, REF_TOPSC_ARTICALNO, DOS_CONTRACT, BID_ROUND
+
+        FROM FRAMEWORK01.FORM_ASSIGNMENT_INTEREST
+        WHERE IS_MIGRATED_01 = 0 AND STATUS = '1';
+
+BEGIN
+    FOR a IN c_interset LOOP
+        BEGIN
+            INSERT INTO "operator_contracts_agreements"."t_assignment_participation_interest_details"@LINK_SERVER_IMS
+            ("assignment_participation_interest_application_number", "block_category", "block_name", "consortium", "existing_operator", 
+             "new_operator", "status_of_contractors", "name_authorized_signatory", "designation", "is_active", "creation_date", "contractor_name", 
+             "ref_psc_article", "dos_contract", "awarded_under", "created_by", "process_id", "current_status", "is_declared")
+
+            VALUES 
+            (a.REF_ID, a.BLOCKCATEGORY, a.BLOCKNAME, a.CONSORTIUM, a.ASSIGNOR,
+            a.ASSIGNEE, a.STATUS_CONTRACTORS, a.NAME_AUTH_SIG_CONTRA, a.DESIGNATION, a.IS_ACTIVE, a.CREATED_ON, a.CONTRACTNAME,
+            a.REF_TOPSC_ARTICALNO, a.DOS_CONTRACT, a.BID_ROUND,5,11,'DRAFT',1);
+
+            mark_as_migrated_assignment_interest_01(a.REF_ID);
+
+        EXCEPTION
+            WHEN OTHERS THEN
+                log_error(SQLCODE, SQLERRM, 'ASSIGNMENT TRANSFER MIGRATION SYSTEM', 'FORM_ASSIGNMENT_INTEREST',a.REF_ID,DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
+                CONTINUE;
+        END;
+
+    END LOOP;    
+    COMMIT;
+END migrate_assignment_interest_01;

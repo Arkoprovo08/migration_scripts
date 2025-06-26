@@ -1,0 +1,75 @@
+create or replace NONEDITIONABLE PROCEDURE migrate_assignment_interest_02(p_refid IN VARCHAR2)
+IS
+    v_exploration_phase1_dropdown     VARCHAR2(1000);
+    v_exploration_phase2_dropdown     VARCHAR2(1000);
+    v_exploration_phase3_dropdown     VARCHAR2(1000);
+    v_technical_brief_info            VARCHAR2(4000);
+    v_bg_submitted_date               DATE;
+    v_bg_amount_usd                   NUMBER;
+    v_period_from                     DATE;
+    v_period_to                       DATE;
+    v_deed_of_assignment              VARCHAR2(10);
+    v_draft_amendments_psc            VARCHAR2(10);
+    v_pending_dues_cleared            VARCHAR2(10);
+    v_is_compliance_checkbox          NUMBER;
+    v_str_compliance_checkbox         VARCHAR2(10);
+BEGIN
+    SELECT
+        MAX(CASE WHEN data_id = 'txt_Ex_Phase_I'         THEN data_value END),
+        MAX(CASE WHEN data_id = 'txt_Ex_Phase_II'        THEN data_value END),
+        MAX(CASE WHEN data_id = 'txt_Ex_Phase_III'       THEN data_value END),
+        MAX(CASE WHEN data_id = 'txt_Brief_corporate'    THEN data_value END),
+        MAX(CASE WHEN data_id = 'txt_Bank_Guarantee_date' THEN TO_DATE(data_value, 'DD/MM/YYYY') END),
+        MAX(CASE WHEN data_id = 'txt_Bank_Guarantee_amt'  THEN TO_NUMBER(data_value) END),
+        MAX(CASE WHEN data_id = 'txt_Bank_Guarantee_from' THEN TO_DATE(data_value, 'DD/MM/YYYY') END),
+        MAX(CASE WHEN data_id = 'txt_Bank_Guarantee_to'   THEN TO_DATE(data_value, 'DD/MM/YYYY') END),
+        MAX(CASE WHEN data_id = 'ddl_Deed_partnership'    THEN data_value END),
+        MAX(CASE WHEN data_id = 'ddl_Amendments'          THEN data_value END),
+        MAX(CASE WHEN data_id = 'ddl_pending_dues'        THEN data_value END),
+        MAX(CASE WHEN data_id = 'ddl_compliances_psc'     THEN data_value END)
+    INTO
+        v_exploration_phase1_dropdown,
+        v_exploration_phase2_dropdown,
+        v_exploration_phase3_dropdown,
+        v_technical_brief_info,
+        v_bg_submitted_date,
+        v_bg_amount_usd,
+        v_period_from,
+        v_period_to,
+        v_deed_of_assignment,
+        v_draft_amendments_psc,
+        v_pending_dues_cleared,
+        v_str_compliance_checkbox
+    FROM FRAMEWORK01.FORM_ASSIGNMENT_INTEREST_DATA
+    WHERE refid = p_refid;
+
+    IF UPPER(TRIM(v_str_compliance_checkbox)) = 'YES' THEN
+        v_is_compliance_checkbox := 1;
+    ELSE
+        v_is_compliance_checkbox := 0;
+    END IF;
+
+    UPDATE "operator_contracts_agreements"."t_assignment_participation_interest_details"@LINK_SERVER_IMS
+    SET
+        "exploration_phase1_dropdown"     = v_exploration_phase1_dropdown,
+        "exploration_phase2_dropdown"     = v_exploration_phase2_dropdown,
+        "exploration_phase3_dropdown"     = v_exploration_phase3_dropdown,
+        "technical_brief_infp_of_assignee"= v_technical_brief_info,
+        "bg_submitted_date"               = v_bg_submitted_date,
+        "bg_amount_usd"                   = v_bg_amount_usd,
+        "period_from"                     = v_period_from,
+        "period_to"                       = v_period_to,
+        "deed_of_assignment"              = v_deed_of_assignment,
+        "draft_amendments_psc"            = v_draft_amendments_psc,
+        "pending_dues_cleared"            = v_pending_dues_cleared,
+        "is_compliance_checkbox"          = v_is_compliance_checkbox
+    WHERE "assignment_participation_interest_application_number" = p_refid;
+    mark_as_migrated_assignment_interest_02(p_refid);
+    mark_as_migrated_assignment_interest_03(p_refid);
+
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        log_error(SQLCODE, SQLERRM, 'ASSIGNMENT MIGRATION_02', 'FORM_ASSIGNMENT_INTEREST_DATA', p_refid, DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
+        ROLLBACK;
+END migrate_assignment_interest_02;
