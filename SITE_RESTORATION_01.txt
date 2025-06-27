@@ -1,0 +1,40 @@
+CREATE OR REPLACE PROCEDURE migrate_site_restoration_01
+IS
+    CURSOR c_notice IS 
+        SELECT REF_ID, CONTRACTNAME, BLOCKCATEGORY, DATE_EFFECTIVE, BLOCKNAME, REF_TOPSC_ARTICALNO, OCR_AVAIABLE , OCR_UNAVAIABLE_TXT,
+        CREATED_BY, CREATED_ON, BID_ROUND, DESIGNATION, DOS_CONTRACT, NAME_AUTH_SIG_CONTRA
+        FROM FRAMEWORK01.FORM_SITE_RESTORATION
+        WHERE IS_MIGRATED = 0 and status = 1;
+    
+    v_is_ocr_available NUMBER;
+
+BEGIN
+    FOR a IN c_notice LOOP
+        BEGIN
+            IF UPPER(TRIM(a.OCR_AVAIABLE)) = 'YES' THEN
+                v_is_ocr_available := 1;
+            ELSE
+                v_is_ocr_available := 0;
+            END IF;
+            INSERT INTO "site_restoration"."t_site_restoration_abandonment_details"@LINK_SERVER_IMS
+                ("site_restoration_abandonment_application_number", "contractor_name", "block_category", "eff_date_contract", 
+                "block_name", "psc_article_no", "ocr_available", "ocr_unaivailability_text", "created_by", "creation_date", 
+                "awarded_under", "designation", "dos_contract", "name_authorized_signatory", "current_status", "declaration_checkbox",
+                "process_id", "is_active","is_migrated")
+            VALUES 
+                (a.REF_ID, a.CONTRACTNAME, a.BLOCKCATEGORY, a.DATE_EFFECTIVE, a.BLOCKNAME, a.REF_TOPSC_ARTICALNO,
+                 v_is_ocr_available, a.OCR_UNAVAIABLE_TXT, 5, a.CREATED_ON, a.BID_ROUND, a.DESIGNATION,
+                 a.DOS_CONTRACT, a.NAME_AUTH_SIG_CONTRA,'DRAFT','{}',24,1,1);
+
+            mark_as_migrated_site_restoration_01(a.REF_ID);
+
+        EXCEPTION
+            WHEN OTHERS THEN
+                log_error(SQLCODE, SQLERRM, 'SITE RESTORATION PHASE MIGRATION SYSTEM', 
+                          'FORM_SITE_RESTORATION', a.REF_ID, DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
+                CONTINUE;
+        END;
+    END LOOP;
+
+    COMMIT;
+END migrate_site_restoration_01;

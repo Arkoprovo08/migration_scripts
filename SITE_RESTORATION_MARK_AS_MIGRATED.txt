@@ -1,0 +1,11 @@
+
+
+create or replace NONEDITIONABLE PROCEDURE mark_as_migrated_site_restoration_01(p_refid IN VARCHAR2) IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+    UPDATE FRAMEWORK01.FORM_SITE_RESTORATION
+    SET IS_MIGRATED = 1
+    WHERE REF_ID = p_refid;
+
+    COMMIT;
+END mark_as_migrated_site_restoration_01;
