@@ -1,0 +1,58 @@
+CREATE OR REPLACE PROCEDURE migrate_notice_next_phase_01
+IS
+    CURSOR c_notice IS 
+        SELECT REFID, CONTRACTNAME, BLOCKNAME, DOS_CONTRACT, BLOCKCATEGORY, BID_ROUND, REF_TOPSC_ARTICALNO,
+               CE_PHASE, ED_CE_PHASE, OPTIONCHOSEN, NAME_AUTH_SIG_CONTRA, DESIGNATION, CREATED_BY, CREATED_ON
+          FROM FRAMEWORK01.FORM_NOTICE_NEXT_PHASE_RELIN
+         WHERE IS_MIGRATED_01 = 0;
+    
+    v_ce_phase VARCHAR2(100);
+    v_option VARCHAR2(100);
+BEGIN
+    FOR a IN c_notice LOOP
+        BEGIN
+            IF a.OPTIONCHOSEN = '1' THEN
+                v_option := 'Entry into Next Phase';
+            ELSIF a.OPTIONCHOSEN = '2' THEN
+                v_option := 'Relinquishment';
+            ELSE
+                v_option := NULL;
+            END IF;
+            
+            IF a.CE_PHASE = '1' THEN
+                v_ce_phase := 'First';
+            ELSIF a.OPTIONCHOSEN = '2' THEN
+                v_ce_phase := 'Second';
+            ELSIF a.OPTIONCHOSEN = '3' THEN
+                v_ce_phase := 'Third';
+            ELSIF a.OPTIONCHOSEN = '4' THEN
+                v_ce_phase := 'Initial';
+            ELSIF a.OPTIONCHOSEN = '5' THEN
+                v_ce_phase := 'Subsequent';
+            ELSE
+                v_ce_phase := NULL;
+            END IF;
+
+            INSERT INTO "operator_contracts_agreements"."t_notice_entering_next_phase_relinquishment_header"@LINK_SERVER_IMS
+                ("entering_next_phase_relinquishment_application_number", "contractor_name", "block_name", 
+                 "date_of_contract_signature", "block_category", "awarded_under", "reference_to_article_policy",
+                 "current_exploration_phase", "expiry_date", "entry_next_phase_relinquishment", 
+                 "name_of_authorised_signatory", "designation", "created_by", "creation_date", 
+                 "is_active", "process_id", "current_status","is_migrated")
+            VALUES 
+                (a.REFID, a.CONTRACTNAME, a.BLOCKNAME, a.DOS_CONTRACT, a.BLOCKCATEGORY, 
+                 a.BID_ROUND, a.REF_TOPSC_ARTICALNO,v_ce_phase , a.ED_CE_PHASE, v_option, 
+                 a.NAME_AUTH_SIG_CONTRA, a.DESIGNATION, 5, a.CREATED_ON, 1, 20, 'DRAFT',1);
+
+            mark_as_migrated_next_phase_01(a.REFID);
+
+        EXCEPTION
+            WHEN OTHERS THEN
+                log_error(SQLCODE, SQLERRM, 'NOTICE NEXT PHASE MIGRATION SYSTEM', 
+                          'FORM_NOTICE_NEXT_PHASE_RELIN', a.REFID, DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
+                CONTINUE;
+        END;
+    END LOOP;
+
+    COMMIT;
+END migrate_notice_next_phase_01;

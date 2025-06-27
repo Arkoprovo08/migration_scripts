@@ -1,0 +1,53 @@
+
+CREATE OR REPLACE PROCEDURE migrate_notice_next_phase_02(p_refid IN VARCHAR2)
+IS
+    v_notice_primary_id  NUMBER;
+    v_entry_type         VARCHAR2(100);   
+    v_next_phase_from    DATE;
+    v_next_phase_to      DATE;
+    v_txt_relinq         NUMBER;
+    v_mwp_completed      VARCHAR2(10);
+    v_bg_cost_ld_mwp     VARCHAR2(10);
+
+    CURSOR c_notice IS 
+        SELECT REFID, ENTRY_NEXT_PHASE_FROM, ENTRY_NEXT_PHASE_TO,
+               TXT_RELINQUISHMENT, MWP_COMPLETED, BG_COST_LD_MWP
+        FROM FRAMEWORK01.FORM_NOTICE_NEXT_PHASE_RELIN
+        WHERE IS_MIGRATED_02 = 0 AND REFID = p_refid;
+
+BEGIN
+    SELECT "entering_next_phase_relinquishment_id",
+           "entry_next_phase_relinquishment"
+    INTO v_notice_primary_id, v_entry_type
+    FROM "operator_contracts_agreements"."t_notice_entering_next_phase_relinquishment_header"@LINK_SERVER_IMS
+    WHERE "entering_next_phase_relinquishment_application_number" = p_refid;
+
+    FOR a IN c_notice LOOP
+        BEGIN
+            IF v_entry_type = 'Entry into Next Phase' THEN
+                INSERT INTO "operator_contracts_agreements"."t_notice_entering_next_phase"@LINK_SERVER_IMS
+                ("entering_next_phase_relinquishment_id", "next_phase_from_date", "next_phase_to_date", "created_by", "is_active","is_migrated")
+                VALUES
+                (v_notice_primary_id, a.ENTRY_NEXT_PHASE_FROM, a.ENTRY_NEXT_PHASE_TO, 5, 1, 1);
+
+            ELSIF v_entry_type = 'Relinquishment' THEN
+                INSERT INTO "operator_contracts_agreements"."t_notice_relinquishment"@LINK_SERVER_IMS
+                ("entering_next_phase_relinquishment_id", "percentage_of_area_under_relinquishment",
+                 "minimum_work_programme_completed", "whether_submitted_bg_paid_cost_ld_against_unfinished_mwp",
+                 "created_by", "is_active", "is_migrated")
+                VALUES
+                (v_notice_primary_id, a.TXT_RELINQUISHMENT, a.MWP_COMPLETED, a.BG_COST_LD_MWP, 5, 1, 1);
+            END IF;
+
+            mark_as_migrated_next_phase_02(a.REFID);
+
+        EXCEPTION
+            WHEN OTHERS THEN
+                log_error(SQLCODE, SQLERRM, 'NOTICE NEXT PHASE MIGRATION SYSTEM_02',
+                          'FORM_NOTICE_NEXT_PHASE_RELIN', a.REFID, DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
+        END;
+    END LOOP;
+
+    COMMIT;
+END migrate_notice_next_phase_02;
+/
